@@ -30,22 +30,29 @@ metadata:
 pip install Pillow numpy scipy
 
 # 1. 品类识别：输入产品图 → 识别品类/风格
-python3 scripts/category_detector.py product.png
+python3 scripts/category_detector.py --image product.png
 
 # 2. 风格匹配：品类+价位+平台+品牌 → 推荐模板
 python3 scripts/style_matcher.py --category 个护电器 --sub-category 剃须刀 --price 169 --platform kuaishou
 
-# 3. 场景感知合成（核心）：场景图+产品图 → 按参照物尺度自动合成
-python3 scripts/scene_aware_compositor.py --scene scene.jpg --product product.png --scene-type lifestyle_bathroom
+# 3. 场景感知合成（核心）：库调用（SceneAwareCompositor 是 Python 库，非 CLI）
+python3 -c "
+from PIL import Image
+from scripts.scene_aware_compositor import SceneAwareCompositor
+c = SceneAwareCompositor()
+scene = Image.open('scene.jpg'); product = Image.open('product.png')
+result = c.composite(scene_image=scene, product_image=product, scene_type='lifestyle_bathroom', position=(0.5, 0.45))
+result.save('result.png')
+"
 
-# 4. 统一文字叠加（z-index 分层，自动避让）
-python3 scripts/text_engine.py --image result.png --text "Type-C快充" --layout bottom_band
+# 4. 统一文字叠加（处理 plan.json 里所有文字层）
+python3 scripts/text_engine.py --plan output/plan.json --brand langke --scene-tone dark
 
-# 5. 自动质检（5 项检查）
-python3 scripts/quality_check.py --dir ./output
+# 5. 自动质检（读取 plan.json + 检查成品图）
+python3 scripts/quality_check.py --plan output/plan.json
 
 # 6. 多平台尺寸适配
-python3 scripts/platform_adapter.py --dir ./output --platform kuaishou
+python3 scripts/platform_adapter.py --input-dir ./output --platforms kuaishou --output-dir ./platform_output
 
 # 7. 标准化交付打包（自动生成使用指南+清单+zip）
 python3 scripts/delivery_packager.py --project-dir ./output --product-name "示例产品"
